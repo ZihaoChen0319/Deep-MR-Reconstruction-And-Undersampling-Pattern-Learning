@@ -11,16 +11,22 @@ from Models.LOUPE import loupe_model
 gpu = '/gpu:' + str(1)
 os.environ["CUDA_VISIBLE_DEVICES"] = str(1)
 
-models_dir = './trained_models/heart_4/'
+models_dir = './trained_models/heart_16_non-task-adaptive/'
 dataset_dir = './Data/Task02_Heart_np/'
 n_class = 2
-image_size = (320, 320, 1)
-sparsity = 1./ 4
+image_size = (320, 320)
+image_channel = 1
+nb_epochs_train = 60
+batch_size = 12
+num_init_filters = 16
+sparsity = 1. / 16
+if_train = True
+if_task_adaptive = True
 
 model = loupe_model(
-    input_shape=image_size,
+    input_shape=image_size + (image_channel,),
     n_class=n_class,
-    filt=16,
+    filt=num_init_filters,
     kern=3,
     sample_slope=200,
     model_type='v2',
@@ -51,7 +57,7 @@ kspace = tf.abs(tf.complex(kspace[..., 0], kspace[..., 1]))
 kspace = tf.math.log(kspace + 1e-6).numpy()
 kspace = np.flip(kspace)
 
-sub_model = keras.models.Model(model.inputs, model.get_layer('prob_mask_scaled').output)
+sub_model = keras.models.Model(model.inputs, model.get_layer('sampled_mask').output)
 mask_scaled = sub_model.predict(test_image)[0].squeeze()
 
 sub_model = keras.models.Model(model.inputs, model.get_layer('under_sample_kspace').output)

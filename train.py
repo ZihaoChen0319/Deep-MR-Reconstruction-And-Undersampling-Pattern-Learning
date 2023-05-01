@@ -21,14 +21,17 @@ os.environ['PYTHONHASHSEED'] = str(42)
 
 # hyper-parameters
 gpu_id = 0  # gpu id
-trained_models_dir = './trained_models/heart_32/'  # change this to a location to save models
+trained_models_dir = './trained_models/heart_16/'  # change this to a location to save models
 dataset_dir = './Data/Task02_Heart_np/'
 n_class = 2
-image_size = (320, 320, 1)
+image_size = (320, 320)
+image_channel = 1
 nb_epochs_train = 60
 batch_size = 12
-sparsity = 1. / 32
+num_init_filters = 16
+sparsity = 1. / 16
 if_train = True
+if_task_adaptive = True
 
 if not os.path.exists(trained_models_dir):
     os.mkdir(trained_models_dir)
@@ -56,9 +59,9 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
 # model definition
 model = loupe_model(
-    input_shape=image_size,
+    input_shape=image_size + (image_channel,),
     n_class=n_class,
-    filt=16,
+    filt=num_init_filters,
     kern=3,
     sample_slope=200,
     model_type='v2',
@@ -69,7 +72,6 @@ model = loupe_model(
 # Train model
 ###############################################################################
 
-print('=' * 20, 'Start Training', '=' * 20)
 train_engine = TrainEngine(
     model=model,
     train_ds=train_ds,
@@ -79,8 +81,10 @@ train_engine = TrainEngine(
     loss_weights=[0.5, 0.5],
     val_freq=10
 )
+
 if if_train:
-    train_engine.train()
+    print('=' * 20, 'Start Training', '=' * 20)
+    train_engine.train(if_task_adaptive=if_task_adaptive)
     model.save_weights(os.path.join(trained_models_dir, 'my_trained_model.h5'))
 
 print('=' * 20, 'Test', '=' * 20)

@@ -25,7 +25,7 @@ class TrainEngine:
         for i in range(len(self.metric_fns)):
             self.metric_fns[i].reset_state()
 
-    @tf.function
+    # @tf.function
     def train_step(self, x, y):
         with tf.GradientTape() as tape:
             recon, seg = self.model(x, training=True)
@@ -38,28 +38,45 @@ class TrainEngine:
             self.metric_fns[i].update_state(y_true=y, y_pred=seg)
         return loss
 
-    @tf.function
+    # @tf.function
     def eval_step(self, x, y):
         recon, seg = self.model(x, training=False)
         self.metric_fns[0].update_state(y_true=x, y_pred=recon)
         for i in range(1, self.n_class):
             self.metric_fns[i].update_state(y_true=y, y_pred=seg)
 
-    def train(self):
+    def train(self, if_task_adaptive=True):
+        self.set_recon_layer(if_trainable=True)
+        self.set_seg_layer(if_trainable=False)
+        seg_weight = self.loss_weights[1]
+        self.loss_weights[1] = 0
+
         for ep in range(1, self.n_epochs + 1):
-            self.train_ds.shuffle(buffer_size=1000)
+            self.train_ds.shuffle(buffer_size=100)
             for step, (x_batch_train, y_batch_train) in enumerate(self.train_ds):
                 loss = self.train_step(x_batch_train, y_batch_train)
 
             train_metrics = [self.metric_fns[i].result().numpy() for i in range(len(self.metric_fns))]
             print('Epoch %d/%d, loss %.4f, mse %.6f, dice' %
                   (ep, self.n_epochs, loss, train_metrics[0]), train_metrics[1:])
-
             self.reset_metrics()
 
             if ep % self.val_freq == 0:
                 self.evaluate()
                 self.reset_metrics()
+
+            if ep == (self.n_epochs // 2):
+                if if_task_adaptive:
+                    self.set_recon_layer(if_trainable=True)
+                    self.set_seg_layer(if_trainable=True)
+                    self.loss_weights[1] = seg_weight
+                else:
+                    self.set_recon_layer(if_trainable=False)
+                    self.set_seg_layer(if_trainable=True)
+                    self.loss_weights[1] = seg_weight
+
+        self.set_seg_layer(if_trainable=True)
+        self.set_seg_layer(if_trainable=True)
 
     def evaluate(self):
         for step, (x_batch_train, y_batch_train) in enumerate(self.val_ds):
@@ -69,4 +86,18 @@ class TrainEngine:
         print('Test mse %.6f, dice' % test_metrics[0], test_metrics[1:])
 
         self.reset_metrics()
+
+    def set_recon_layer(self, if_trainable=True):
+        for layer in self.model.layers:
+            layer.trainable = if_trainable
+            if layer.name == 'recon_final':
+                break
+
+    def set_seg_layer(self, if_trainable=True):
+        flag = False
+        for layer in self.model.layers:
+            if flag:
+                layer.trainable = if_trainable
+            if layer.name == 'recon_final':
+               flag = True
 

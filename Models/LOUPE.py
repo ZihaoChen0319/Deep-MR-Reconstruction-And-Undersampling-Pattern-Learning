@@ -388,33 +388,37 @@ def loupe_model(input_shape=(256, 256, 1),
 
         # inputs
         inputs = Input(shape=input_shape, name='input_layer')
-
         last_tensor = inputs
+
         # if necessary, concatenate with zeros for FFT
         if input_shape[-1] == 1:
             last_tensor = ConcatenateZero(name='concat_zero')(last_tensor)
 
-        # input -> kspace via FFT
-        last_tensor = FFT(name='fft')(last_tensor)
+        if sparsity != 1.:
+            # input -> kspace via FFT
+            last_tensor = FFT(name='fft')(last_tensor)
 
-        # build probability mask
-        prob_mask_tensor = ProbMask(name='prob_mask', slope=pmask_slope, initializer=pmask_init)(last_tensor)
+            # build probability mask
+            prob_mask_tensor = ProbMask(name='prob_mask', slope=pmask_slope, initializer=pmask_init)(last_tensor)
 
-        if model_type == 'v2':
-            assert sparsity is not None, 'for this model, need desired sparsity to be specified'
-            prob_mask_tensor = RescaleProbMap(sparsity, name='prob_mask_scaled')(prob_mask_tensor)
+            if model_type == 'v2':
+                assert sparsity is not None, 'for this model, need desired sparsity to be specified'
+                prob_mask_tensor = RescaleProbMap(sparsity, name='prob_mask_scaled')(prob_mask_tensor)
+
+            else:
+                assert sparsity is None, 'for v1 model, cannot specify sparsity'
+
+            # Realization of probability mask
+            thresh_tensor = RandomMask(name='random_mask')(prob_mask_tensor)
+            last_tensor_mask = ThresholdRandomMask(slope=sample_slope, name='sampled_mask')(
+                [prob_mask_tensor, thresh_tensor])
+
+            # Under-sample and back to image space via IFFT
+            last_tensor = UnderSample(name='under_sample_kspace')([last_tensor, last_tensor_mask])
+            last_tensor = IFFT(name='under_sample_img')(last_tensor)
 
         else:
-            assert sparsity is None, 'for v1 model, cannot specify sparsity'
-
-        # Realization of probability mask
-        thresh_tensor = RandomMask(name='random_mask')(prob_mask_tensor)
-        last_tensor_mask = ThresholdRandomMask(slope=sample_slope, name='sampled_mask')(
-            [prob_mask_tensor, thresh_tensor])
-
-        # Under-sample and back to image space via IFFT
-        last_tensor = UnderSample(name='under_sample_kspace')([last_tensor, last_tensor_mask])
-        last_tensor = IFFT(name='under_sample_img')(last_tensor)
+            print('Experiment on fully-sampled MRI')
 
     # hard-coded UNet
     recon_tensor = _unet_from_tensor(last_tensor, filt, kern, output_nb_feats=1, name='recon_unet')
