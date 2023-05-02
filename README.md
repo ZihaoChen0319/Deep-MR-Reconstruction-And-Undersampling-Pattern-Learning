@@ -1,5 +1,7 @@
 # Learn a Task-Adaptive MR Under-Sampling Pattern
-A deep learning framework to learn a task-adaptive under-sampling pattern and reconstruct MRI in end-to-end way.
+![Framework](/Figures/framework.png "Framework")
+
+A deep learning framework to learn a task-adaptive under-sampling pattern and reconstruct MRI in end-to-end way. This is a course project of [BME 548 Machine Learning and Imaging](https://deepimaging.github.io/) at Duke University.
 
 ## Get Started
 
@@ -52,8 +54,8 @@ python main.py
 
 ## Roadmap
 - [x] Implementation of the framework
-- [ ] Add a framework figure
-- [ ] Use `argparse` in `data_preprocess.py`, `main.py` and `visualize.py'
+- [x] Add a framework figure
+- [ ] Use `argparse` in `data_preprocess.py`, `main.py` and `visualize.py`
 
 ## Acknowledgement
 ### Open-Source Repositories
