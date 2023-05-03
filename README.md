@@ -56,6 +56,7 @@ python main.py
 - [x] Implementation of the framework
 - [x] Add a framework figure
 - [ ] Use `argparse` in `data_preprocess.py`, `main.py` and `visualize.py`
+- [ ] Enable the cartesian under-sampling pattern
 
 ## Acknowledgement
 ### Open-Source Repositories
